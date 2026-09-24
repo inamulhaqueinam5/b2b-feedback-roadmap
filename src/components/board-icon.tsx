@@ -35,6 +35,7 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
 
 interface BoardIconProps extends Omit<LucideProps, "name"> {
   name?: string | null;
+  className?: string;
 }
 
 export function BoardIcon({ name, ...props }: BoardIconProps) {

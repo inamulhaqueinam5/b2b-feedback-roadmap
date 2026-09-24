@@ -134,7 +134,3 @@ export async function getPostCommentsAction(
   return getPostComments(workspaceId, postId, effectiveActor, activeDb);
 }
 
-export {
-  createInternalNoteAction,
-  getInternalNotesAction,
-} from "./internal-notes";

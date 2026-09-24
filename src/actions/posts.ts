@@ -15,7 +15,7 @@ import {
   type GetPostsForBoardResult,
   type UpdatePostStatusResult,
 } from "@/services/posts";
-import { getRoadmapCacheTag } from "@/actions/roadmap";
+import { getRoadmapCacheTag } from "@/lib/cache-tags";
 import { getActorContext } from "@/lib/auth-context";
 import type { ActorContext } from "@/services/boards";
 import type { PostStatus } from "@/db/schema/posts";
@@ -141,12 +141,4 @@ export async function updatePostStatusAction(
   return result;
 }
 
-export {
-  mergePostsAction,
-  type MergePostsResult,
-} from "./merges";
-
-export {
-  updatePostAssociatedMrrAction,
-} from "./internal-notes";
 

@@ -22,13 +22,13 @@ export type {
   RoadmapStatus,
 };
 
+import { getRoadmapCacheTag as getSyncRoadmapCacheTag } from "@/lib/cache-tags";
+
 /**
  * Returns a deterministic cache tag for roadmap responses.
  */
-export function getRoadmapCacheTag(workspaceId: string, boardId?: string): string {
-  return boardId
-    ? `workspace:${workspaceId}:roadmap:board:${boardId}`
-    : `workspace:${workspaceId}:roadmap`;
+export async function getRoadmapCacheTag(workspaceId: string, boardId?: string): Promise<string> {
+  return getSyncRoadmapCacheTag(workspaceId, boardId);
 }
 
 /**
@@ -47,10 +47,10 @@ export async function revalidateRoadmapAction(
 
   try {
     if (workspaceId) {
-      revalidateTag(getRoadmapCacheTag(workspaceId, boardId));
+      revalidateTag(getSyncRoadmapCacheTag(workspaceId, boardId));
       revalidateTag(`workspace:${workspaceId}:roadmap`);
     }
-    revalidateTag(getRoadmapCacheTag(workspaceSlug, boardId));
+    revalidateTag(getSyncRoadmapCacheTag(workspaceSlug, boardId));
     revalidateTag(`workspace:${workspaceSlug}:roadmap`);
   } catch {
     // Gracefully ignored outside Next.js request runtime

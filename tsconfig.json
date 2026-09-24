@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,15 +23,25 @@
       "C:/Users/USER/AppData/Local/b2b_saas_node_modules/node_modules/@types"
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "react": ["C:/Users/USER/AppData/Local/b2b_saas_node_modules/node_modules/@types/react"],
-      "react-dom": ["C:/Users/USER/AppData/Local/b2b_saas_node_modules/node_modules/@types/react-dom"],
-      "*": [
-        "*",
-        "C:/Users/USER/AppData/Local/b2b_saas_node_modules/node_modules/*"
+      "@/*": [
+        "./src/*"
       ]
-    }
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "node_modules_backup"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "node_modules_backup",
+    "neon.ts"
+  ]
 }

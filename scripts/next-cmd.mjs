@@ -9,6 +9,7 @@ const child = spawn(process.execPath, [nextPath, ...args], {
   env: {
     ...process.env,
     NODE_PATH: localModules,
+    NODE_OPTIONS: "--trace-uncaught",
   },
 });
 

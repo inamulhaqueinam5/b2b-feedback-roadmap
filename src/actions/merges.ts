@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { db } from "@/db";
 import type { DbClient } from "@/db/repositories/workspaces";
 import { mergePosts, type MergePostsResult } from "@/services/merges";
-import { getRoadmapCacheTag } from "@/actions/roadmap";
+import { getRoadmapCacheTag } from "@/lib/cache-tags";
 import { getActorContext } from "@/lib/auth-context";
 import type { ActorContext } from "@/services/boards";
 
