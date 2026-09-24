@@ -1,17 +1,21 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db } from "@/db";
+import type { DbClient } from "@/db/repositories/workspaces";
 import {
   createPost,
   searchDuplicates,
   getPostDetail,
   getPostsForBoard,
+  updatePostStatus,
   type CreatePostResult,
   type SearchDuplicatesResult,
   type GetPostDetailResult,
   type GetPostsForBoardResult,
+  type UpdatePostStatusResult,
 } from "@/services/posts";
+import { getRoadmapCacheTag } from "@/actions/roadmap";
 import { getActorContext } from "@/lib/auth-context";
 import type { ActorContext } from "@/services/boards";
 import type { PostStatus } from "@/db/schema/posts";
@@ -21,6 +25,7 @@ export type {
   SearchDuplicatesResult,
   GetPostDetailResult,
   GetPostsForBoardResult,
+  UpdatePostStatusResult,
 };
 
 export async function createPostAction(
@@ -72,4 +77,62 @@ export async function getPostsForBoardAction(
 ): Promise<GetPostsForBoardResult> {
   const effectiveActor = actor ?? (await getActorContext({ workspaceSlug }));
   return getPostsForBoard(workspaceSlug, boardSlug, options, effectiveActor, db);
+}
+
+/**
+ * Server Action to transition post status and record an automated system audit trail comment.
+ * Revalidates workspace paths and roadmap cache tags upon successful transitions.
+ */
+export async function updatePostStatusAction(
+  workspaceId: string,
+  postId: string,
+  newStatus: PostStatus,
+  actor?: ActorContext,
+  dbClient?: DbClient
+): Promise<UpdatePostStatusResult> {
+  const activeDb = dbClient ?? db;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    workspaceId.trim()
+  );
+  const effectiveActor =
+    actor ??
+    (await getActorContext({
+      workspaceId: isUuid ? workspaceId : undefined,
+      workspaceSlug: isUuid ? undefined : workspaceId,
+      dbClient: activeDb,
+    }));
+
+  const result = await updatePostStatus(
+    workspaceId,
+    postId,
+    newStatus,
+    effectiveActor,
+    activeDb
+  );
+
+  if (result.success) {
+    try {
+      revalidatePath(`/w/${result.workspace.slug}`);
+      revalidatePath(`/w/${result.workspace.slug}/b/${result.board.slug}`);
+      revalidatePath(`/w/${result.workspace.slug}/roadmap`);
+      revalidatePath(`/w/${result.workspace.slug}/p/${postId}`);
+    } catch {
+      // Path revalidation is gracefully skipped in non-request environments
+    }
+
+    try {
+      revalidateTag(getRoadmapCacheTag(result.workspace.id));
+      revalidateTag(getRoadmapCacheTag(result.workspace.id, result.board.id));
+      if (workspaceId !== result.workspace.id) {
+        revalidateTag(getRoadmapCacheTag(workspaceId));
+      }
+      revalidateTag(`workspace:${result.workspace.id}:roadmap`);
+      revalidateTag(`workspace:${result.workspace.slug}:roadmap`);
+      revalidateTag(`post:${postId}`);
+    } catch {
+      // Tag revalidation is gracefully skipped in non-request environments
+    }
+  }
+
+  return result;
 }

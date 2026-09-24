@@ -5,7 +5,9 @@ import { getActorContext } from "@/lib/auth-context";
 import { UpvoteButton } from "@/components/upvote-button";
 import { BoardIcon } from "@/components/board-icon";
 import { CommentThread } from "@/components/comment-thread";
+import { StatusDropdown } from "@/components/status-dropdown";
 import { getPostCommentsAction } from "@/actions/comments";
+import type { PostStatus } from "@/db/schema/posts";
 import {
   ArrowLeft,
   Calendar,
@@ -134,9 +136,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                   <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
                     {post.title}
                   </h1>
-                  <span className="uppercase text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
-                    {post.status.replace("_", " ")}
-                  </span>
+                  <StatusDropdown
+                    workspaceId={workspace.id}
+                    workspaceSlug={workspace.slug}
+                    postId={post.id}
+                    currentStatus={post.status as PostStatus}
+                    canModerate={actor.role === "owner" || actor.role === "admin"}
+                  />
                 </div>
 
                 {/* Metadata Row */}

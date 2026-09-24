@@ -5,9 +5,11 @@ import { getPostsForBoardAction } from "@/actions/posts";
 import { BoardIcon } from "@/components/board-icon";
 import { PostSubmissionDialog } from "@/components/post-submission-dialog";
 import { UpvoteButton } from "@/components/upvote-button";
+import { StatusDropdown } from "@/components/status-dropdown";
 import { getActorContext } from "@/lib/auth-context";
 import { getUserUpvotedPostIds } from "@/db/repositories/upvotes";
 import { db } from "@/db";
+import type { PostStatus } from "@/db/schema/posts";
 import {
   Globe,
   Lock,
@@ -197,9 +199,14 @@ export default async function BoardPage({ params }: BoardPageProps) {
                   >
                     {p.title}
                   </Link>
-                  <span className="uppercase text-[9px] font-semibold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                    {p.status.replace("_", " ")}
-                  </span>
+                  <StatusDropdown
+                    workspaceId={workspace.id}
+                    workspaceSlug={workspace.slug}
+                    postId={p.id}
+                    currentStatus={p.status as PostStatus}
+                    canModerate={actor.role === "owner" || actor.role === "admin"}
+                    size="sm"
+                  />
                 </div>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
                   {p.description}
