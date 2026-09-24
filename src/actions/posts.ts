@@ -58,10 +58,12 @@ export async function searchDuplicatesAction(
 export async function getPostDetailAction(
   workspaceSlug: string,
   postId: string,
-  actor?: ActorContext
+  actor?: ActorContext,
+  dbClient?: DbClient
 ): Promise<GetPostDetailResult> {
-  const effectiveActor = actor ?? (await getActorContext({ workspaceSlug }));
-  return getPostDetail(workspaceSlug, postId, effectiveActor, db);
+  const activeDb = dbClient ?? db;
+  const effectiveActor = actor ?? (await getActorContext({ workspaceSlug, dbClient: activeDb }));
+  return getPostDetail(workspaceSlug, postId, effectiveActor, activeDb);
 }
 
 export async function getPostsForBoardAction(
@@ -73,10 +75,12 @@ export async function getPostsForBoardAction(
     limit?: number;
     offset?: number;
   },
-  actor?: ActorContext
+  actor?: ActorContext,
+  dbClient?: DbClient
 ): Promise<GetPostsForBoardResult> {
-  const effectiveActor = actor ?? (await getActorContext({ workspaceSlug }));
-  return getPostsForBoard(workspaceSlug, boardSlug, options, effectiveActor, db);
+  const activeDb = dbClient ?? db;
+  const effectiveActor = actor ?? (await getActorContext({ workspaceSlug, dbClient: activeDb }));
+  return getPostsForBoard(workspaceSlug, boardSlug, options, effectiveActor, activeDb);
 }
 
 /**
@@ -136,3 +140,8 @@ export async function updatePostStatusAction(
 
   return result;
 }
+
+export {
+  updatePostAssociatedMrrAction,
+} from "./internal-notes";
+

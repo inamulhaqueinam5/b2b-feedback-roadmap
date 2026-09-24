@@ -133,3 +133,8 @@ export async function getPostCommentsAction(
     actor ?? (await getActorContext({ workspaceId, dbClient: activeDb }));
   return getPostComments(workspaceId, postId, effectiveActor, activeDb);
 }
+
+export {
+  createInternalNoteAction,
+  getInternalNotesAction,
+} from "./internal-notes";

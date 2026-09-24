@@ -110,6 +110,49 @@ export async function findCommentsByPostId(
 }
 
 /**
+ * Retrieves private internal notes for a given post ordered chronologically.
+ */
+export async function findInternalNotesByPostId(
+  db: DbClient,
+  postId: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+  }
+): Promise<CommentWithAuthor[]> {
+  let query = db
+    .select({
+      id: comments.id,
+      postId: comments.postId,
+      authorId: comments.authorId,
+      content: comments.content,
+      isInternalNote: comments.isInternalNote,
+      isSystemAudit: comments.isSystemAudit,
+      createdAt: comments.createdAt,
+      updatedAt: comments.updatedAt,
+      author: {
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        image: users.image,
+      },
+    })
+    .from(comments)
+    .innerJoin(users, eq(comments.authorId, users.id))
+    .where(and(eq(comments.postId, postId), eq(comments.isInternalNote, true)))
+    .orderBy(asc(comments.createdAt));
+
+  if (options?.limit) {
+    query = query.limit(options.limit) as typeof query;
+  }
+  if (options?.offset) {
+    query = query.offset(options.offset) as typeof query;
+  }
+
+  return await query;
+}
+
+/**
  * Finds a single comment by ID.
  */
 export async function findCommentById(

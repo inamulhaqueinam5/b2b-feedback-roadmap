@@ -466,3 +466,30 @@ export async function updatePostStatusWithAudit(
     };
   });
 }
+
+/**
+ * Updates a post associated MRR revenue weight.
+ * Strictly scoped to tenant workspaceId.
+ */
+export async function updatePostAssociatedMrr(
+  db: DbClient,
+  workspaceId: string,
+  postId: string,
+  associatedMrr: string | number | null
+): Promise<Post | null> {
+  const mrrValue =
+    associatedMrr !== null && associatedMrr !== undefined
+      ? Number(associatedMrr).toFixed(2)
+      : "0.00";
+
+  const [updated] = await db
+    .update(posts)
+    .set({
+      associatedMrr: mrrValue,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(posts.id, postId), eq(posts.workspaceId, workspaceId)))
+    .returning();
+
+  return updated ?? null;
+}
