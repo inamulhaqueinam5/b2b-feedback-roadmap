@@ -56,3 +56,17 @@ export async function isWorkspaceSlugAvailable(
   const existing = await getWorkspaceRecordBySlug(db, slug);
   return existing === null;
 }
+
+export async function getWorkspaceRecordByIdOrSlug(
+  db: DbClient,
+  idOrSlug: string
+): Promise<Workspace | null> {
+  const clean = idOrSlug.trim();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean);
+  if (isUuid) {
+    const byId = await getWorkspaceRecordById(db, clean);
+    if (byId) return byId;
+  }
+  return await getWorkspaceRecordBySlug(db, clean.toLowerCase());
+}
+

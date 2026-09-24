@@ -4,7 +4,10 @@ import { getBoardBySlugAction, getBoardsAction } from "@/actions/boards";
 import { getPostsForBoardAction } from "@/actions/posts";
 import { BoardIcon } from "@/components/board-icon";
 import { PostSubmissionDialog } from "@/components/post-submission-dialog";
+import { UpvoteButton } from "@/components/upvote-button";
 import { getActorContext } from "@/lib/auth-context";
+import { getUserUpvotedPostIds } from "@/db/repositories/upvotes";
+import { db } from "@/db";
 import {
   Globe,
   Lock,
@@ -12,7 +15,6 @@ import {
   Search,
   Plus,
   MessageSquareDashed,
-  ThumbsUp,
   ChevronRight,
 } from "lucide-react";
 
@@ -41,6 +43,15 @@ export default async function BoardPage({ params }: BoardPageProps) {
 
   const availableBoards = boardsResult.success ? boardsResult.boards : [board];
   const posts = postsResult.success ? postsResult.posts : [];
+
+  let upvotedPostIds = new Set<string>();
+  if (actor.userId && posts.length > 0) {
+    upvotedPostIds = await getUserUpvotedPostIds(
+      db,
+      posts.map((p) => p.id),
+      actor.userId
+    );
+  }
 
   const currentUser = actor.user
     ? {
@@ -169,16 +180,23 @@ export default async function BoardPage({ params }: BoardPageProps) {
               key={p.id}
               className="flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-xs"
             >
-              <div className="flex flex-col items-center justify-center min-w-[48px] py-1.5 px-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 text-slate-700 dark:text-zinc-300">
-                <ThumbsUp className="w-3.5 h-3.5 mb-0.5 text-slate-500 dark:text-zinc-400" />
-                <span className="text-xs font-bold">{p.upvoteCount}</span>
-              </div>
+              <UpvoteButton
+                postId={p.id}
+                workspaceSlug={workspace.slug}
+                workspaceId={workspace.id}
+                initialUpvoteCount={p.upvoteCount}
+                initialHasUpvoted={upvotedPostIds.has(p.id)}
+                currentUser={currentUser}
+              />
 
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">
+                  <Link
+                    href={`/w/${workspace.slug}/p/${p.id}`}
+                    className="text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-sky-600 dark:hover:text-sky-400 transition-colors truncate"
+                  >
                     {p.title}
-                  </h3>
+                  </Link>
                   <span className="uppercase text-[9px] font-semibold tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
                     {p.status.replace("_", " ")}
                   </span>
@@ -188,7 +206,13 @@ export default async function BoardPage({ params }: BoardPageProps) {
                 </p>
               </div>
 
-              <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 self-center" />
+              <Link
+                href={`/w/${workspace.slug}/p/${p.id}`}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 shrink-0 self-center transition-colors"
+                aria-label="View post details"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
           ))}
         </div>
