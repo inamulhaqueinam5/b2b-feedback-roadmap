@@ -25,7 +25,7 @@ export function BoardNavigationPills({
       {/* Overview / All Boards Tab */}
       <Link
         href={`/w/${workspaceSlug}`}
-        className={`inline-flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+        className={`inline-flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none rounded-md ${
           isOverviewActive
             ? "border-slate-900 dark:border-zinc-100 text-slate-900 dark:text-zinc-100 font-semibold"
             : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
@@ -44,7 +44,7 @@ export function BoardNavigationPills({
           <Link
             key={board.id}
             href={boardHref}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none rounded-md ${
               isBoardActive
                 ? "border-slate-900 dark:border-zinc-100 text-slate-900 dark:text-zinc-100 font-semibold"
                 : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
@@ -59,17 +59,18 @@ export function BoardNavigationPills({
         );
       })}
 
-      {/* Roadmap Tab (Planned for Issue #9) */}
-      <div
-        className="inline-flex items-center gap-1.5 px-3 py-2 border-b-2 border-transparent text-slate-400 dark:text-zinc-600 cursor-not-allowed select-none whitespace-nowrap"
-        title="Public Roadmap coming in Issue #9"
+      {/* Interactive Public Roadmap Tab */}
+      <Link
+        href={`/w/${workspaceSlug}/roadmap`}
+        className={`inline-flex items-center gap-1.5 px-3 py-2 border-b-2 transition-all whitespace-nowrap focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:outline-none rounded-md ${
+          pathname.startsWith(`/w/${workspaceSlug}/roadmap`)
+            ? "border-slate-900 dark:border-zinc-100 text-slate-900 dark:text-zinc-100 font-semibold"
+            : "border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
+        }`}
       >
-        <Map className="w-3.5 h-3.5" />
+        <Map className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
         <span>Roadmap</span>
-        <span className="text-[10px] uppercase font-mono px-1 py-0.2 rounded bg-slate-100 dark:bg-zinc-800/80 text-slate-400 dark:text-zinc-500">
-          Soon
-        </span>
-      </div>
+      </Link>
     </nav>
   );
 }

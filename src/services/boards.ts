@@ -25,6 +25,12 @@ export type WorkspaceRole = "owner" | "admin" | "member" | "guest" | "visitor";
 export interface ActorContext {
   userId?: string;
   role: WorkspaceRole;
+  user?: {
+    id: string;
+    name?: string | null;
+    email: string;
+    image?: string | null;
+  };
 }
 
 export function canManageBoards(actor?: ActorContext): boolean {

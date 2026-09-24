@@ -1,16 +1,23 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getBoardBySlugAction } from "@/actions/boards";
+import { getBoardBySlugAction, getBoardsAction } from "@/actions/boards";
+import { getPostsForBoardAction } from "@/actions/posts";
 import { BoardIcon } from "@/components/board-icon";
+import { PostSubmissionDialog } from "@/components/post-submission-dialog";
+import { UpvoteButton } from "@/components/upvote-button";
+import { StatusDropdown } from "@/components/status-dropdown";
+import { getActorContext } from "@/lib/auth-context";
+import { getUserUpvotedPostIds } from "@/db/repositories/upvotes";
+import { db } from "@/db";
+import type { PostStatus } from "@/db/schema/posts";
 import {
   Globe,
   Lock,
   ArrowLeft,
   Search,
-  SlidersHorizontal,
   Plus,
   MessageSquareDashed,
-  Sparkles,
+  ChevronRight,
 } from "lucide-react";
 
 interface BoardPageProps {
@@ -22,13 +29,40 @@ interface BoardPageProps {
 
 export default async function BoardPage({ params }: BoardPageProps) {
   const { workspaceSlug, boardSlug } = await params;
-  const result = await getBoardBySlugAction(workspaceSlug, boardSlug);
+  const actor = await getActorContext({ workspaceSlug });
+  const result = await getBoardBySlugAction(workspaceSlug, boardSlug, actor);
 
   if (!result.success || !result.board) {
     notFound();
   }
 
   const { board, workspace } = result;
+
+  const [boardsResult, postsResult] = await Promise.all([
+    getBoardsAction(workspaceSlug, actor),
+    getPostsForBoardAction(workspaceSlug, boardSlug, undefined, actor),
+  ]);
+
+  const availableBoards = boardsResult.success ? boardsResult.boards : [board];
+  const posts = postsResult.success ? postsResult.posts : [];
+
+  let upvotedPostIds = new Set<string>();
+  if (actor.userId && posts.length > 0) {
+    upvotedPostIds = await getUserUpvotedPostIds(
+      db,
+      posts.map((p) => p.id),
+      actor.userId
+    );
+  }
+
+  const currentUser = actor.user
+    ? {
+        id: actor.userId ?? "",
+        name: actor.user.name,
+        email: actor.user.email,
+        image: actor.user.image,
+      }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -91,16 +125,24 @@ export default async function BoardPage({ params }: BoardPageProps) {
             </div>
           </div>
 
-          {/* Action Button */}
+          {/* Action Button: PostSubmissionDialog Trigger */}
           <div className="flex items-center gap-2.5 shrink-0">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-sm hover:opacity-95 transition-all"
-              style={{ backgroundColor: workspace.brandColor }}
-            >
-              <Plus className="w-4 h-4" />
-              Submit Feedback
-            </button>
+            <PostSubmissionDialog
+              workspaceSlug={workspace.slug}
+              boards={availableBoards}
+              defaultBoardId={board.id}
+              currentUser={currentUser}
+              triggerButton={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white shadow-sm hover:opacity-95 transition-all"
+                  style={{ backgroundColor: workspace.brandColor }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Submit Feedback</span>
+                </button>
+              }
+            />
           </div>
         </div>
       </div>
@@ -132,31 +174,89 @@ export default async function BoardPage({ params }: BoardPageProps) {
         </div>
       </div>
 
-      {/* Posts Empty State */}
-      <div className="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 p-10 sm:p-14 text-center space-y-4 bg-white/50 dark:bg-zinc-900/20">
-        <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mx-auto text-slate-400 dark:text-zinc-500">
-          <MessageSquareDashed className="w-6 h-6" />
-        </div>
+      {/* Posts List or Empty State */}
+      {posts.length > 0 ? (
+        <div className="space-y-3">
+          {posts.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 transition-all shadow-xs"
+            >
+              <UpvoteButton
+                postId={p.id}
+                workspaceSlug={workspace.slug}
+                workspaceId={workspace.id}
+                initialUpvoteCount={p.upvoteCount}
+                initialHasUpvoted={upvotedPostIds.has(p.id)}
+                currentUser={currentUser}
+              />
 
-        <div className="space-y-1 max-w-sm mx-auto">
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-            No feedback entries on {board.name} yet
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Be the first community member to create a post for this board.
-          </p>
-        </div>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link
+                    href={`/w/${workspace.slug}/p/${p.id}`}
+                    className="text-sm font-semibold text-slate-900 dark:text-zinc-100 hover:text-sky-600 dark:hover:text-sky-400 transition-colors truncate"
+                  >
+                    {p.title}
+                  </Link>
+                  <StatusDropdown
+                    workspaceId={workspace.id}
+                    workspaceSlug={workspace.slug}
+                    postId={p.id}
+                    currentStatus={p.status as PostStatus}
+                    canModerate={actor.role === "owner" || actor.role === "admin"}
+                    size="sm"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                  {p.description}
+                </p>
+              </div>
 
-        <div className="pt-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Feedback Submissions Coming in Issue #6
-          </button>
+              <Link
+                href={`/w/${workspace.slug}/p/${p.id}`}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 shrink-0 self-center transition-colors"
+                aria-label="View post details"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </div>
+          ))}
         </div>
-      </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800 p-10 sm:p-14 text-center space-y-4 bg-white/50 dark:bg-zinc-900/20">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mx-auto text-slate-400 dark:text-zinc-500">
+            <MessageSquareDashed className="w-6 h-6" />
+          </div>
+
+          <div className="space-y-1 max-w-sm mx-auto">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              No feedback entries on {board.name} yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+              Be the first community member to create a post for this board.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <PostSubmissionDialog
+              workspaceSlug={workspace.slug}
+              boards={availableBoards}
+              defaultBoardId={board.id}
+              currentUser={currentUser}
+              triggerButton={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                  Submit First Feedback Item
+                </button>
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
