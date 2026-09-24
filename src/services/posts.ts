@@ -6,6 +6,7 @@ import {
 import {
   createPostWithInitialUpvote,
   searchSimilarPosts,
+  findPostById,
   findPostWithDetailsById,
   hasUserUpvotedPost,
   isUserSubscribedToPost,
@@ -63,6 +64,7 @@ export type GetPostDetailResult =
       author: { id: string; name: string | null; image: string | null; email: string };
       hasUpvoted: boolean;
       isSubscribed: boolean;
+      mergedIntoPost?: { id: string; title: string } | null;
     }
   | {
       success: false;
@@ -219,6 +221,14 @@ export async function getPostDetail(
     isSubscribed = await isUserSubscribedToPost(db, postId, actor.userId);
   }
 
+  let mergedIntoPost: { id: string; title: string } | null = null;
+  if (postDetail.post.mergedIntoPostId) {
+    const master = await findPostById(db, workspace.id, postDetail.post.mergedIntoPostId);
+    if (master) {
+      mergedIntoPost = { id: master.id, title: master.title };
+    }
+  }
+
   return {
     success: true,
     post: postDetail.post,
@@ -227,6 +237,7 @@ export async function getPostDetail(
     author: postDetail.author,
     hasUpvoted,
     isSubscribed,
+    mergedIntoPost,
   };
 }
 
@@ -386,3 +397,10 @@ export async function updatePostStatus(
     newStatus,
   };
 }
+
+export {
+  mergePosts,
+  canMergePosts,
+  type MergePostsResult,
+} from "./merges";
+

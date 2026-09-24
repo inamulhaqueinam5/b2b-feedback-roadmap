@@ -6,15 +6,18 @@ import { UpvoteButton } from "@/components/upvote-button";
 import { BoardIcon } from "@/components/board-icon";
 import { CommentThread } from "@/components/comment-thread";
 import { StatusDropdown } from "@/components/status-dropdown";
+import { MergePostButton } from "@/components/merge-post-modal";
 import { getPostCommentsAction } from "@/actions/comments";
 import type { PostStatus } from "@/db/schema/posts";
 import {
   ArrowLeft,
+  ArrowRight,
   Calendar,
   Lock,
   Globe,
   Bell,
   CheckCircle2,
+  GitMerge,
 } from "lucide-react";
 
 interface PostDetailPageProps {
@@ -33,7 +36,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
     notFound();
   }
 
-  const { post, board, workspace, author, hasUpvoted, isSubscribed } = result;
+  const { post, board, workspace, author, hasUpvoted, isSubscribed, mergedIntoPost } = result;
 
   const currentUser = actor.user
     ? {
@@ -81,6 +84,42 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
         </span>
       </nav>
 
+      {/* Prominent Redirect Banner for Merged Posts */}
+      {post.mergedIntoPostId && mergedIntoPost && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-sky-200 dark:border-sky-800/80 bg-sky-50/90 dark:bg-sky-950/40 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-600 dark:text-sky-300 shrink-0">
+              <GitMerge className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">
+                  Post Merged
+                </span>
+              </div>
+              <p className="text-sm font-medium text-slate-800 dark:text-zinc-200">
+                This request was merged into{" "}
+                <span className="font-semibold text-sky-700 dark:text-sky-300 underline decoration-sky-300 dark:decoration-sky-700 underline-offset-2">
+                  {mergedIntoPost.title}
+                </span>
+                . All discussion and upvotes have been transferred.
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href={`/w/${workspace.slug}/p/${mergedIntoPost.id}`}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-sky-600 text-white hover:bg-sky-700 active:scale-[0.98] transition-all shrink-0 shadow-2xs cursor-pointer"
+          >
+            <span>View Master Request</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      )}
+
       {/* Main Post Card */}
       <div className="rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-xs overflow-hidden">
         <div className="p-6 sm:p-8 space-y-6">
@@ -126,6 +165,7 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                 currentUser={currentUser}
                 size="lg"
                 orientation="vertical"
+                disabled={!!post.mergedIntoPostId}
               />
             </div>
 
@@ -142,6 +182,12 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                     postId={post.id}
                     currentStatus={post.status as PostStatus}
                     canModerate={actor.role === "owner" || actor.role === "admin"}
+                  />
+                  <MergePostButton
+                    workspaceId={workspace.id}
+                    workspaceSlug={workspace.slug}
+                    post={{ id: post.id, title: post.title }}
+                    canMerge={(actor.role === "owner" || actor.role === "admin") && !post.mergedIntoPostId}
                   />
                 </div>
 
