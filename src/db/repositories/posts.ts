@@ -466,3 +466,10 @@ export async function updatePostStatusWithAudit(
     };
   });
 }
+
+export {
+  mergePostsTransaction,
+  type MergePostsRecordParams,
+  type MergePostsRecordResult,
+} from "./merges";
+

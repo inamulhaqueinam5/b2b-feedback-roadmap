@@ -136,3 +136,9 @@ export async function updatePostStatusAction(
 
   return result;
 }
+
+export {
+  mergePostsAction,
+  type MergePostsResult,
+} from "./merges";
+
