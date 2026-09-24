@@ -40,6 +40,7 @@ export async function toggleUpvoteAction(
     try {
       revalidatePath(`/w/${result.workspace.slug}`);
       revalidatePath(`/w/${result.workspace.slug}/p/${postId}`);
+      revalidatePath(`/w/${result.workspace.slug}/roadmap`);
     } catch {
       // Path revalidation is gracefully skipped in non-request environments
     }
@@ -48,6 +49,8 @@ export async function toggleUpvoteAction(
       revalidateTag(`post:${postId}`);
       revalidateTag(`workspace:${result.workspace.id}:posts`);
       revalidateTag(`workspace:${result.workspace.slug}:posts`);
+      revalidateTag(`workspace:${result.workspace.id}:roadmap`);
+      revalidateTag(`workspace:${result.workspace.slug}:roadmap`);
     } catch {
       // Tag revalidation is gracefully skipped in non-request environments
     }
