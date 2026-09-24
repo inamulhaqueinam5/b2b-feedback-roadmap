@@ -5,6 +5,7 @@ import { getBoardsAction } from "@/actions/boards";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BoardNavigationPills } from "@/components/board-navigation-pills";
 import { BoardManagementDialog } from "@/components/board-management-dialog";
+import { NotificationDropdown } from "@/components/notification-dropdown";
 import { PlusCircle } from "lucide-react";
 
 interface WorkspaceLayoutProps {
@@ -65,6 +66,7 @@ export default async function WorkspaceLayout({
 
             {/* Right: Actions & Theme Switcher */}
             <div className="flex items-center gap-2">
+              <NotificationDropdown workspaceSlug={workspace.slug} />
               <BoardManagementDialog
                 workspaceSlug={workspace.slug}
                 boards={boards}

@@ -152,6 +152,22 @@ export async function getTestDb() {
     CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
     CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
     CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+      type VARCHAR(32) NOT NULL,
+      message TEXT NOT NULL,
+      is_read BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_notifications_workspace_user ON notifications(workspace_id, user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_post_id ON notifications(post_id);
+    CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
   `);
 
   testDbInstance = drizzle(client, { schema });

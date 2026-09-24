@@ -29,6 +29,7 @@ import type { Board } from "@/db/schema/boards";
 import type { Workspace } from "@/db/schema/workspaces";
 import type { Comment } from "@/db/schema/comments";
 import { canViewPrivateBoards, type ActorContext } from "@/services/boards";
+import { dispatchStatusChangeNotification } from "@/services/notifications";
 
 export type CreatePostResult =
   | {
@@ -358,6 +359,21 @@ export async function updatePostStatus(
       error: "Post not found",
       code: "NOT_FOUND",
     };
+  }
+
+  if (updateResult.previousStatus !== newStatus) {
+    try {
+      await dispatchStatusChangeNotification(
+        workspace.id,
+        postId,
+        updateResult.previousStatus,
+        newStatus,
+        actor.userId,
+        db
+      );
+    } catch {
+      // Gracefully handle notification dispatch failure
+    }
   }
 
   return {
