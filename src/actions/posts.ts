@@ -34,6 +34,7 @@ export async function createPostAction(
   if (result.success) {
     revalidatePath(`/w/${workspaceSlug}`);
     revalidatePath(`/w/${workspaceSlug}/b/${result.board.slug}`);
+    revalidatePath(`/w/${workspaceSlug}/roadmap`);
   }
 
   return result;
