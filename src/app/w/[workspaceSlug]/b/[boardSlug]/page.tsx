@@ -143,7 +143,7 @@ export default async function BoardPage({ params }: BoardPageProps) {
             No feedback entries on {board.name} yet
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            Be the first community member to propose an idea or submit a request for this board.
+            Be the first community member to create a post for this board.
           </p>
         </div>
 

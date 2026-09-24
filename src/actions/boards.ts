@@ -9,7 +9,6 @@ import {
   updateBoard,
   archiveBoard,
   reorderBoards,
-  seedDefaultBoardsIfEmpty,
   type ActorContext,
   type GetBoardsResult,
   type GetBoardResult,
@@ -18,7 +17,7 @@ import {
   type ArchiveBoardResult,
   type ReorderBoardsResult,
 } from "@/services/boards";
-import { getWorkspaceRecordBySlug } from "@/db/repositories/workspaces";
+import { getActorContext } from "@/lib/auth-context";
 
 export type {
   ActorContext,
@@ -30,19 +29,25 @@ export type {
   ReorderBoardsResult,
 };
 
+async function executeBoardMutation<T extends { success: boolean }>(
+  workspaceSlug: string,
+  mutationFn: (actor: ActorContext) => Promise<T>,
+  explicitActor?: ActorContext
+): Promise<T> {
+  const actor = explicitActor ?? (await getActorContext());
+  const result = await mutationFn(actor);
+  if (result.success) {
+    revalidatePath(`/w/${workspaceSlug}`);
+  }
+  return result;
+}
+
 export async function getBoardsAction(
   workspaceSlug: string,
   actor?: ActorContext
 ): Promise<GetBoardsResult> {
-  const result = await getBoardsForWorkspace(workspaceSlug, actor, db);
-
-  // If this workspace has zero boards yet, seed default starter boards for good UX
-  if (result.success && result.boards.length === 0) {
-    await seedDefaultBoardsIfEmpty(result.workspace.id, db);
-    return getBoardsForWorkspace(workspaceSlug, actor, db);
-  }
-
-  return result;
+  const effectiveActor = actor ?? (await getActorContext());
+  return getBoardsForWorkspace(workspaceSlug, effectiveActor, db);
 }
 
 export async function getBoardBySlugAction(
@@ -50,7 +55,8 @@ export async function getBoardBySlugAction(
   boardSlug: string,
   actor?: ActorContext
 ): Promise<GetBoardResult> {
-  return getBoardBySlug(workspaceSlug, boardSlug, actor, db);
+  const effectiveActor = actor ?? (await getActorContext());
+  return getBoardBySlug(workspaceSlug, boardSlug, effectiveActor, db);
 }
 
 export async function createBoardAction(
@@ -58,13 +64,11 @@ export async function createBoardAction(
   input: unknown,
   actor?: ActorContext
 ): Promise<CreateBoardResult> {
-  // If no actor passed in development / direct call, default to admin for management
-  const effectiveActor: ActorContext = actor ?? { role: "admin" };
-  const result = await createBoard(workspaceSlug, input, effectiveActor, db);
-  if (result.success) {
-    revalidatePath(`/w/${workspaceSlug}`);
-  }
-  return result;
+  return executeBoardMutation(
+    workspaceSlug,
+    (effectiveActor) => createBoard(workspaceSlug, input, effectiveActor, db),
+    actor
+  );
 }
 
 export async function updateBoardAction(
@@ -73,12 +77,11 @@ export async function updateBoardAction(
   input: unknown,
   actor?: ActorContext
 ): Promise<UpdateBoardResult> {
-  const effectiveActor: ActorContext = actor ?? { role: "admin" };
-  const result = await updateBoard(workspaceSlug, boardId, input, effectiveActor, db);
-  if (result.success) {
-    revalidatePath(`/w/${workspaceSlug}`);
-  }
-  return result;
+  return executeBoardMutation(
+    workspaceSlug,
+    (effectiveActor) => updateBoard(workspaceSlug, boardId, input, effectiveActor, db),
+    actor
+  );
 }
 
 export async function archiveBoardAction(
@@ -86,12 +89,11 @@ export async function archiveBoardAction(
   boardId: string,
   actor?: ActorContext
 ): Promise<ArchiveBoardResult> {
-  const effectiveActor: ActorContext = actor ?? { role: "admin" };
-  const result = await archiveBoard(workspaceSlug, boardId, effectiveActor, db);
-  if (result.success) {
-    revalidatePath(`/w/${workspaceSlug}`);
-  }
-  return result;
+  return executeBoardMutation(
+    workspaceSlug,
+    (effectiveActor) => archiveBoard(workspaceSlug, boardId, effectiveActor, db),
+    actor
+  );
 }
 
 export async function reorderBoardsAction(
@@ -99,10 +101,9 @@ export async function reorderBoardsAction(
   input: unknown,
   actor?: ActorContext
 ): Promise<ReorderBoardsResult> {
-  const effectiveActor: ActorContext = actor ?? { role: "admin" };
-  const result = await reorderBoards(workspaceSlug, input, effectiveActor, db);
-  if (result.success) {
-    revalidatePath(`/w/${workspaceSlug}`);
-  }
-  return result;
+  return executeBoardMutation(
+    workspaceSlug,
+    (effectiveActor) => reorderBoards(workspaceSlug, input, effectiveActor, db),
+    actor
+  );
 }

@@ -51,7 +51,7 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
               Welcome to {workspace.name}
             </h2>
             <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-2xl leading-relaxed">
-              Explore feedback categories below or create new boards to organize feature suggestions, bug reports and customer requests.
+              Explore feedback boards below or create new boards to organize user suggestions, bug reports and customer requests.
             </p>
           </div>
 
@@ -81,7 +81,7 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
               Feedback Boards
             </h3>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Select a board to submit or review feedback items
+              Select a board to submit or review posts
             </p>
           </div>
 

@@ -276,4 +276,65 @@ describe("Board Service & Authorization Boundaries", () => {
       }
     });
   });
+
+  describe("Unauthenticated Mutation Security Guards", () => {
+    it("blocks board creation when actor is undefined", async () => {
+      const res = await createBoard(
+        workspace.slug,
+        { name: "Hacker Board", slug: "hacker-board" },
+        undefined,
+        db
+      );
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/unauthorized/i);
+      }
+    });
+
+    it("blocks board update when actor is undefined", async () => {
+      const boardsRes = await getBoardsForWorkspace(workspace.slug, adminActor, db);
+      if (!boardsRes.success) return;
+      const target = boardsRes.boards[0];
+
+      const res = await updateBoard(
+        workspace.slug,
+        target.id,
+        { name: "Unauthorized Update" },
+        undefined,
+        db
+      );
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/unauthorized/i);
+      }
+    });
+
+    it("blocks board archiving when actor is undefined", async () => {
+      const boardsRes = await getBoardsForWorkspace(workspace.slug, adminActor, db);
+      if (!boardsRes.success) return;
+      const target = boardsRes.boards[0];
+
+      const res = await archiveBoard(workspace.slug, target.id, undefined, db);
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/unauthorized/i);
+      }
+    });
+
+    it("blocks board reordering when actor is undefined", async () => {
+      const res = await reorderBoards(
+        workspace.slug,
+        { items: [{ id: "a0000000-0000-0000-0000-000000000001", sortOrder: 0 }] },
+        undefined,
+        db
+      );
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/unauthorized/i);
+      }
+    });
+  });
 });

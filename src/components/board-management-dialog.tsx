@@ -57,11 +57,6 @@ export function BoardManagementDialog({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Sync initialBoards when props update
-  if (initialBoards !== boards && !isOpen) {
-    setBoards(initialBoards);
-  }
-
   function resetForm() {
     setEditingBoardId(null);
     setName("");
@@ -188,6 +183,7 @@ export function BoardManagementDialog({
         type="button"
         onClick={() => {
           resetForm();
+          setBoards(initialBoards);
           setActiveTab("list");
           setIsOpen(true);
         }}
@@ -221,7 +217,7 @@ export function BoardManagementDialog({
                     Feedback Boards Management
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-zinc-400">
-                    Configure categories, manage ordering and toggle visibility
+                    Configure boards, manage ordering and toggle visibility
                   </p>
                 </div>
               </div>
