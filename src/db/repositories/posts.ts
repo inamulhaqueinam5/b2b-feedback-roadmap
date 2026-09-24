@@ -6,7 +6,8 @@ import {
   type Post,
   type PostStatus,
 } from "@/db/schema/posts";
-import { boards } from "@/db/schema/boards";
+import { boards, type Board } from "@/db/schema/boards";
+import { comments, type Comment } from "@/db/schema/comments";
 import { users } from "@/db/schema/auth";
 import type { DbClient } from "@/db/repositories/workspaces";
 
@@ -375,4 +376,93 @@ export async function findPostsByBoard(
   }
 
   return await query;
+}
+
+export const POST_STATUS_LABELS: Record<PostStatus, string> = {
+  open: "Open",
+  under_review: "Under Review",
+  planned: "Planned",
+  in_progress: "In Progress",
+  completed: "Completed",
+  closed: "Closed",
+};
+
+export function formatStatusLabel(status: PostStatus | string): string {
+  if (status in POST_STATUS_LABELS) {
+    return POST_STATUS_LABELS[status as PostStatus];
+  }
+  return status
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export interface UpdatePostStatusParams {
+  workspaceId: string;
+  postId: string;
+  newStatus: PostStatus;
+  authorId: string;
+}
+
+export interface UpdatePostStatusRecordResult {
+  post: Post;
+  board: Board;
+  auditComment: Comment;
+  previousStatus: PostStatus;
+}
+
+/**
+ * Updates post status and creates an automated system audit comment within an atomic transaction.
+ */
+export async function updatePostStatusWithAudit(
+  db: DbClient,
+  params: UpdatePostStatusParams
+): Promise<UpdatePostStatusRecordResult | null> {
+  return await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        post: posts,
+        board: boards,
+      })
+      .from(posts)
+      .innerJoin(boards, eq(posts.boardId, boards.id))
+      .where(and(eq(posts.id, params.postId), eq(posts.workspaceId, params.workspaceId)))
+      .limit(1);
+
+    if (!existing) {
+      return null;
+    }
+
+    const previousStatus = existing.post.status as PostStatus;
+
+    const [updatedPost] = await tx
+      .update(posts)
+      .set({
+        status: params.newStatus,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(posts.id, params.postId), eq(posts.workspaceId, params.workspaceId)))
+      .returning();
+
+    const previousLabel = formatStatusLabel(previousStatus);
+    const newLabel = formatStatusLabel(params.newStatus);
+
+    const [auditComment] = await tx
+      .insert(comments)
+      .values({
+        postId: params.postId,
+        authorId: params.authorId,
+        content: `Changed status from ${previousLabel} to ${newLabel}`,
+        isInternalNote: false,
+        isSystemAudit: true,
+      })
+      .returning();
+
+    return {
+      post: updatedPost,
+      board: existing.board,
+      auditComment,
+      previousStatus,
+    };
+  });
 }

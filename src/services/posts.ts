@@ -10,16 +10,24 @@ import {
   hasUserUpvotedPost,
   isUserSubscribedToPost,
   findPostsByBoard,
+  updatePostStatusWithAudit,
+  POST_STATUS_LABELS,
+  formatStatusLabel,
   type SimilarPost,
 } from "@/db/repositories/posts";
 import {
   getBoardRecordById,
   getBoardRecordBySlug,
 } from "@/db/repositories/boards";
-import { getWorkspaceRecordBySlug, type DbClient } from "@/db/repositories/workspaces";
-import type { Post, PostStatus } from "@/db/schema/posts";
+import {
+  getWorkspaceRecordById,
+  getWorkspaceRecordBySlug,
+  type DbClient,
+} from "@/db/repositories/workspaces";
+import { postStatusEnum, type Post, type PostStatus } from "@/db/schema/posts";
 import type { Board } from "@/db/schema/boards";
 import type { Workspace } from "@/db/schema/workspaces";
+import type { Comment } from "@/db/schema/comments";
 import { canViewPrivateBoards, type ActorContext } from "@/services/boards";
 
 export type CreatePostResult =
@@ -261,5 +269,104 @@ export async function getPostsForBoard(
     posts,
     board,
     workspace,
+  };
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function resolveWorkspace(
+  workspaceIdOrSlug: string,
+  db: DbClient
+): Promise<Workspace | null> {
+  if (!workspaceIdOrSlug) return null;
+  const trimmed = workspaceIdOrSlug.trim();
+  if (UUID_REGEX.test(trimmed)) {
+    const ws = await getWorkspaceRecordById(db, trimmed);
+    if (ws) return ws;
+  }
+  return await getWorkspaceRecordBySlug(db, trimmed.toLowerCase());
+}
+
+export function canModeratePosts(actor?: ActorContext): boolean {
+  if (!actor?.userId) return false;
+  return actor.role === "owner" || actor.role === "admin";
+}
+
+export type UpdatePostStatusResult =
+  | {
+      success: true;
+      post: Post;
+      board: Board;
+      workspace: Workspace;
+      auditComment: Comment;
+      previousStatus: PostStatus;
+      newStatus: PostStatus;
+    }
+  | {
+      success: false;
+      error: string;
+      code?: string;
+    };
+
+/**
+ * Transitions a post status and creates an automated system audit trail record.
+ * Restricted strictly to workspace owners and admins.
+ */
+export async function updatePostStatus(
+  workspaceIdOrSlug: string,
+  postId: string,
+  newStatus: PostStatus,
+  actor: ActorContext | undefined,
+  db: DbClient
+): Promise<UpdatePostStatusResult> {
+  if (!actor?.userId || (actor.role !== "owner" && actor.role !== "admin")) {
+    return {
+      success: false,
+      error: "Only workspace owners and admins can transition post status",
+      code: "FORBIDDEN",
+    };
+  }
+
+  if (!newStatus || !postStatusEnum.includes(newStatus as PostStatus)) {
+    return {
+      success: false,
+      error: `Invalid post status: ${String(newStatus)}`,
+      code: "VALIDATION_ERROR",
+    };
+  }
+
+  const workspace = await resolveWorkspace(workspaceIdOrSlug, db);
+  if (!workspace) {
+    return {
+      success: false,
+      error: "Workspace not found",
+      code: "NOT_FOUND",
+    };
+  }
+
+  const updateResult = await updatePostStatusWithAudit(db, {
+    workspaceId: workspace.id,
+    postId,
+    newStatus,
+    authorId: actor.userId,
+  });
+
+  if (!updateResult) {
+    return {
+      success: false,
+      error: "Post not found",
+      code: "NOT_FOUND",
+    };
+  }
+
+  return {
+    success: true,
+    post: updateResult.post,
+    board: updateResult.board,
+    workspace,
+    auditComment: updateResult.auditComment,
+    previousStatus: updateResult.previousStatus,
+    newStatus,
   };
 }

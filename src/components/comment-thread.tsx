@@ -12,6 +12,8 @@ import {
   Check,
   X,
   Clock,
+  History,
+  ArrowRight,
 } from "lucide-react";
 import {
   createCommentAction,
@@ -341,6 +343,52 @@ export function CommentThread({
           </div>
         ) : (
           optimisticComments.map((comment) => {
+            if (comment.isSystemAudit) {
+              const match = comment.content.match(/^Changed status from (.+) to (.+)$/);
+              const fromStatus = match ? match[1] : null;
+              const toStatus = match ? match[2] : null;
+
+              return (
+                <div
+                  key={comment.id}
+                  className="flex items-center gap-3 py-2.5 px-4 rounded-xl bg-slate-50/80 dark:bg-zinc-900/50 border border-slate-200/80 dark:border-zinc-800/80 text-xs text-slate-600 dark:text-zinc-400 transition-colors shadow-2xs"
+                >
+                  <div className="w-6 h-6 rounded-full bg-slate-200/70 dark:bg-zinc-800 flex items-center justify-center shrink-0 text-slate-600 dark:text-zinc-400 border border-slate-300/60 dark:border-zinc-700">
+                    <History className="w-3 h-3" />
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                    <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                      {comment.author.name ?? comment.author.email}
+                    </span>
+
+                    {fromStatus && toStatus ? (
+                      <span className="inline-flex items-center gap-1.5 flex-wrap">
+                        <span>changed status from</span>
+                        <span className="font-semibold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-300/60 dark:border-zinc-700">
+                          {fromStatus}
+                        </span>
+                        <ArrowRight className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
+                        <span className="font-semibold uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                          {toStatus}
+                        </span>
+                      </span>
+                    ) : (
+                      <span>{comment.content}</span>
+                    )}
+                  </div>
+
+                  <span
+                    className="text-[11px] text-slate-400 dark:text-zinc-500 shrink-0 flex items-center gap-1 font-mono"
+                    title={new Date(comment.createdAt).toLocaleString()}
+                  >
+                    <Clock className="w-3 h-3" />
+                    {formatRelativeTime(comment.createdAt)}
+                  </span>
+                </div>
+              );
+            }
+
             const isEditing = editingCommentId === comment.id;
             const isDeleting = deletingCommentId === comment.id;
 
