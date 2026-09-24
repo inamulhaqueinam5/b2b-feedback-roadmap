@@ -99,6 +99,18 @@ export function PostSubmissionDialog({
     setErrorMessage(null);
   }
 
+  // Close dialog on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        handleClose();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
   // Real-time debounced duplicate search while typing title
   useEffect(() => {
     const trimmedTitle = title.trim();

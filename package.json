@@ -8,7 +8,8 @@
     "start": "node scripts/next-cmd.mjs start",
     "typecheck": "node scripts/typecheck.mjs",
     "test": "node scripts/test.mjs",
-    "test:watch": "node scripts/test.mjs watch"
+    "test:watch": "node scripts/test.mjs watch",
+    "seed": "node scripts/seed.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
