@@ -10,6 +10,13 @@ export async function getTestDb() {
   }
 
   const client = new PGlite();
+
+  try {
+    await client.exec(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+  } catch {
+    // pg_trgm extension not available in WASM environment
+  }
+
   await client.exec(`
     CREATE TABLE IF NOT EXISTS workspaces (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,6 +96,47 @@ export async function getTestDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id);
+
+    CREATE TABLE IF NOT EXISTS posts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+      board_id UUID NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+      author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      status VARCHAR(32) NOT NULL DEFAULT 'open',
+      upvote_count INTEGER NOT NULL DEFAULT 1,
+      associated_mrr NUMERIC(10, 2) DEFAULT 0,
+      is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+      merged_into_post_id UUID REFERENCES posts(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_posts_workspace_board ON posts(workspace_id, board_id);
+    CREATE INDEX IF NOT EXISTS idx_posts_workspace_status ON posts(workspace_id, status);
+    CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts(author_id);
+    CREATE INDEX IF NOT EXISTS idx_posts_merged_into ON posts(merged_into_post_id);
+
+    CREATE TABLE IF NOT EXISTS post_upvotes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_post_upvotes_post_user UNIQUE (post_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_post_upvotes_user_id ON post_upvotes(user_id);
+
+    CREATE TABLE IF NOT EXISTS post_subscribers (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT uq_post_subscribers_post_user UNIQUE (post_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_post_subscribers_user_id ON post_subscribers(user_id);
   `);
 
   testDbInstance = drizzle(client, { schema });
