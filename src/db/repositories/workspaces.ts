@@ -1,17 +1,14 @@
 import { eq } from "drizzle-orm";
-import { workspaces, type Workspace, type NewWorkspace } from "@/db/schema/workspaces";
+import { workspaces, type Workspace } from "@/db/schema/workspaces";
+import type { CreateWorkspaceInput } from "@/lib/validation/workspace";
+import type { PgDatabase } from "drizzle-orm/pg-core";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type DbClient = any;
+export type DbClient = PgDatabase<any, any, any>;
 
 export async function createWorkspaceRecord(
   db: DbClient,
-  input: {
-    name: string;
-    slug: string;
-    brandColor?: string;
-    logoUrl?: string | null;
-  }
+  input: CreateWorkspaceInput
 ): Promise<Workspace> {
   const [created] = await db
     .insert(workspaces)

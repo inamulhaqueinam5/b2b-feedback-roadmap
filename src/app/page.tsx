@@ -30,7 +30,7 @@ export default function HomePage() {
             Multi-Tenant Feedback & Roadmap Platform
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">
-            Set up your team workspace
+            Set up your workspace
           </h1>
           <p className="text-sm sm:text-base text-slate-500 dark:text-zinc-400">
             Create an isolated customer feedback hub with public boards, community upvotes and transparent roadmaps.

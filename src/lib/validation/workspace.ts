@@ -61,4 +61,5 @@ export const createWorkspaceSchema = z.object({
   logoUrl: z.string().url("Invalid URL").optional().nullable(),
 });
 
-export type CreateWorkspaceInput = z.infer<typeof createWorkspaceSchema>;
+export type CreateWorkspaceInput = z.input<typeof createWorkspaceSchema>;
+export type CreateWorkspaceOutput = z.output<typeof createWorkspaceSchema>;

@@ -29,38 +29,6 @@ export function WorkspaceCreationForm() {
   const [submitError, setSubmitError] = useState<string>("");
   const [isPending, startTransition] = useTransition();
 
-  // Debounced slug validation
-  const checkSlug = useCallback(async (currentSlug: string) => {
-    if (!currentSlug || currentSlug.length < 2) {
-      setSlugStatus("invalid");
-      setSlugFeedback("Slug must be at least 2 characters");
-      return;
-    }
-
-    if (!isValidSlugFormat(currentSlug)) {
-      setSlugStatus("invalid");
-      setSlugFeedback("Use lowercase letters, numbers and single hyphens");
-      return;
-    }
-
-    setSlugStatus("checking");
-    setSlugFeedback("Checking availability...");
-
-    try {
-      const result = await validateWorkspaceSlugAction(currentSlug);
-      if (result.available) {
-        setSlugStatus("available");
-        setSlugFeedback("URL is available");
-      } else {
-        setSlugStatus("unavailable");
-        setSlugFeedback(result.error ?? "Slug is not available");
-      }
-    } catch {
-      setSlugStatus("unavailable");
-      setSlugFeedback("Could not verify slug availability");
-    }
-  }, []);
-
   useEffect(() => {
     if (!slug) {
       setSlugStatus("idle");
@@ -68,12 +36,48 @@ export function WorkspaceCreationForm() {
       return;
     }
 
-    const timer = setTimeout(() => {
-      checkSlug(slug);
+    let isCurrent = true;
+
+    const timer = setTimeout(async () => {
+      if (!isCurrent) return;
+
+      if (slug.length < 2) {
+        setSlugStatus("invalid");
+        setSlugFeedback("Slug must be at least 2 characters");
+        return;
+      }
+
+      if (!isValidSlugFormat(slug)) {
+        setSlugStatus("invalid");
+        setSlugFeedback("Use lowercase letters, numbers and single hyphens");
+        return;
+      }
+
+      setSlugStatus("checking");
+      setSlugFeedback("Checking availability...");
+
+      try {
+        const result = await validateWorkspaceSlugAction(slug);
+        if (!isCurrent) return;
+        if (result.available) {
+          setSlugStatus("available");
+          setSlugFeedback("URL is available");
+        } else {
+          setSlugStatus("unavailable");
+          setSlugFeedback(result.error ?? "Slug is not available");
+        }
+      } catch {
+        if (!isCurrent) return;
+        setSlugStatus("unavailable");
+        setSlugFeedback("Could not verify slug availability");
+      }
     }, 350);
 
-    return () => clearTimeout(timer);
-  }, [slug, checkSlug]);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [slug]);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = e.target.value;
@@ -86,7 +90,13 @@ export function WorkspaceCreationForm() {
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsSlugManuallyEdited(true);
-    setSlug(sanitizeSlug(e.target.value));
+    // Allow typing hyphens without aggressively stripping trailing dashes on keystrokes
+    const raw = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
+    setSlug(raw);
+  };
+
+  const handleSlugBlur = () => {
+    setSlug(sanitizeSlug(slug));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -94,7 +104,7 @@ export function WorkspaceCreationForm() {
     setSubmitError("");
 
     if (!name.trim()) {
-      setSubmitError("Please provide an organization or product name");
+      setSubmitError("Please provide a workspace name");
       return;
     }
 
@@ -162,6 +172,7 @@ export function WorkspaceCreationForm() {
               placeholder="acme-corp"
               value={slug}
               onChange={handleSlugChange}
+              onBlur={handleSlugBlur}
               className="flex-1 px-3.5 py-2.5 bg-transparent text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:outline-none text-sm font-mono"
             />
             <div className="pr-3 flex items-center">
