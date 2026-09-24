@@ -7,7 +7,11 @@ import { BoardIcon } from "@/components/board-icon";
 import { CommentThread } from "@/components/comment-thread";
 import { StatusDropdown } from "@/components/status-dropdown";
 import { MergePostButton } from "@/components/merge-post-modal";
+import { AssociatedMrrEditor } from "@/components/associated-mrr-editor";
+import { PostDetailTabs } from "@/components/post-detail-tabs";
 import { getPostCommentsAction } from "@/actions/comments";
+import { getInternalNotesAction } from "@/actions/internal-notes";
+import type { CommentItem } from "@/actions/comments";
 import type { PostStatus } from "@/db/schema/posts";
 import {
   ArrowLeft,
@@ -48,12 +52,26 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
       }
     : null;
 
+  const isAdmin = actor.role === "owner" || actor.role === "admin";
+
   const commentsResult = await getPostCommentsAction(
     workspace.id,
     post.id,
     actor
   );
   const initialComments = commentsResult.success ? commentsResult.comments : [];
+
+  let initialNotes: CommentItem[] = [];
+  if (isAdmin) {
+    const notesResult = await getInternalNotesAction(
+      workspace.id,
+      post.id,
+      actor
+    );
+    if (notesResult.success) {
+      initialNotes = notesResult.notes;
+    }
+  }
 
   const formattedDate = new Date(post.createdAt).toLocaleDateString("en-US", {
     month: "short",
@@ -181,7 +199,13 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
                     workspaceSlug={workspace.slug}
                     postId={post.id}
                     currentStatus={post.status as PostStatus}
-                    canModerate={actor.role === "owner" || actor.role === "admin"}
+                    canModerate={isAdmin}
+                  />
+                  <AssociatedMrrEditor
+                    workspaceId={workspace.id}
+                    postId={post.id}
+                    initialMrr={post.associatedMrr}
+                    canEdit={isAdmin}
                   />
                   <MergePostButton
                     workspaceId={workspace.id}
@@ -248,13 +272,15 @@ export default async function PostDetailPage({ params }: PostDetailPageProps) {
         </div>
       </div>
 
-      {/* Community Comments & Threading */}
-      <CommentThread
+      {/* Community Comments & Internal Notes Threading */}
+      <PostDetailTabs
         workspaceId={workspace.id}
         workspaceSlug={workspace.slug}
         postId={post.id}
         initialComments={initialComments}
+        initialNotes={initialNotes}
         currentUser={currentUser}
+        isAdmin={isAdmin}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import {
 import {
   createComment as createCommentRecord,
   findCommentsByPostId,
+  findInternalNotesByPostId,
   findCommentWithPost,
   updateComment as updateCommentRecord,
   deleteComment as deleteCommentRecord,
@@ -121,12 +122,19 @@ export async function createComment(
     return { success: false, error: "Post not found", code: "NOT_FOUND" };
   }
 
-  if (parsed.data.isInternalNote && !canViewPrivateBoards(actor)) {
-    return {
-      success: false,
-      error: "Unauthorized to post confidential internal notes",
-      code: "FORBIDDEN",
-    };
+  if (parsed.data.isInternalNote) {
+    const memberRole = await getUserWorkspaceRole(actor.userId, workspace.id, db);
+    const effectiveRole =
+      actor.role === "owner" || actor.role === "admin" ? actor.role : memberRole;
+    const isAdmin = effectiveRole === "owner" || effectiveRole === "admin";
+
+    if (!isAdmin) {
+      return {
+        success: false,
+        error: "Unauthorized: Only workspace owners and admins can post confidential internal notes",
+        code: "FORBIDDEN",
+      };
+    }
   }
 
   const created = await createCommentRecord(db, {
@@ -187,9 +195,9 @@ export async function getPostComments(
     return { success: false, error: "Post not found", code: "NOT_FOUND" };
   }
 
-  const canViewInternal = canViewPrivateBoards(actor);
+  // Public discussion comments never include confidential internal notes
   const commentRows = await findCommentsByPostId(db, postId, {
-    includeInternal: canViewInternal,
+    includeInternal: false,
   });
 
   const workspaceMembersList = await listWorkspaceMembers(db, workspace.id);
@@ -390,3 +398,174 @@ export async function deleteComment(
 
   return { success: true, commentId };
 }
+
+export type GetInternalNotesResult =
+  | { success: true; notes: CommentItem[]; comments: CommentItem[] }
+  | { success: false; error: string; code?: string };
+
+export type CreateInternalNoteResult =
+  | { success: true; note: CommentItem; comment: CommentItem }
+  | { success: false; error: string; code?: string };
+
+/**
+ * Retrieves private internal notes for a post.
+ * Strictly restricted to workspace owners and admins.
+ */
+export async function getInternalNotes(
+  workspaceIdOrSlug: string,
+  postId: string,
+  actor: ActorContext | undefined,
+  db: DbClient
+): Promise<GetInternalNotesResult> {
+  if (!actor?.userId || actor.role === "visitor") {
+    return {
+      success: false,
+      error: "Authentication required to view internal notes",
+      code: "UNAUTHENTICATED",
+    };
+  }
+
+  const workspace = await resolveWorkspace(workspaceIdOrSlug, db);
+  if (!workspace) {
+    return { success: false, error: "Workspace not found", code: "NOT_FOUND" };
+  }
+
+  const post = await findPostById(db, workspace.id, postId);
+  if (!post) {
+    return { success: false, error: "Post not found", code: "NOT_FOUND" };
+  }
+
+  const memberRole = await getUserWorkspaceRole(actor.userId, workspace.id, db);
+  const effectiveRole =
+    actor.role === "owner" || actor.role === "admin" ? actor.role : memberRole;
+  const isAdmin = effectiveRole === "owner" || effectiveRole === "admin";
+
+  if (!isAdmin) {
+    return {
+      success: false,
+      error: "Unauthorized: Only workspace owners and admins can view internal notes",
+      code: "FORBIDDEN",
+    };
+  }
+
+  const noteRows = await findInternalNotesByPostId(db, post.id);
+
+  const workspaceMembersList = await listWorkspaceMembers(db, workspace.id);
+  const roleMap = new Map(
+    workspaceMembersList.map((m) => [m.userId, m.role as string])
+  );
+
+  const notes: CommentItem[] = noteRows.map((row) => {
+    const authorRole = roleMap.get(row.authorId) ?? null;
+    const isTeamMember = authorRole === "owner" || authorRole === "admin";
+
+    return {
+      id: row.id,
+      postId: row.postId,
+      authorId: row.authorId,
+      content: row.content,
+      isInternalNote: true,
+      isSystemAudit: false,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      author: row.author,
+      isTeamMember,
+      authorRole,
+      canEdit: true,
+      canDelete: true,
+    };
+  });
+
+  return { success: true, notes, comments: notes };
+}
+
+/**
+ * Creates a private internal note for a post.
+ * Strictly restricted to workspace owners and admins.
+ */
+export async function createInternalNote(
+  workspaceIdOrSlug: string,
+  postId: string,
+  rawInput: unknown,
+  actor: ActorContext | undefined,
+  db: DbClient
+): Promise<CreateInternalNoteResult> {
+  if (!actor?.userId || actor.role === "visitor") {
+    return {
+      success: false,
+      error: "Authentication required to post internal notes",
+      code: "UNAUTHENTICATED",
+    };
+  }
+
+  const workspace = await resolveWorkspace(workspaceIdOrSlug, db);
+  if (!workspace) {
+    return { success: false, error: "Workspace not found", code: "NOT_FOUND" };
+  }
+
+  const post = await findPostById(db, workspace.id, postId);
+  if (!post) {
+    return { success: false, error: "Post not found", code: "NOT_FOUND" };
+  }
+
+  const memberRole = await getUserWorkspaceRole(actor.userId, workspace.id, db);
+  const effectiveRole =
+    actor.role === "owner" || actor.role === "admin" ? actor.role : memberRole;
+  const isAdmin = effectiveRole === "owner" || effectiveRole === "admin";
+
+  if (!isAdmin) {
+    return {
+      success: false,
+      error: "Unauthorized: Only workspace owners and admins can post internal notes",
+      code: "FORBIDDEN",
+    };
+  }
+
+  const normalizedInput =
+    typeof rawInput === "string"
+      ? { content: rawInput, isInternalNote: true }
+      : {
+          ...(typeof rawInput === "object" && rawInput !== null ? rawInput : {}),
+          isInternalNote: true,
+        };
+
+  const parsed = createCommentSchema.safeParse(normalizedInput);
+  if (!parsed.success) {
+    const errorMsg = parsed.error.issues.map((i) => i.message).join("; ");
+    return { success: false, error: errorMsg, code: "VALIDATION_ERROR" };
+  }
+
+  const created = await createCommentRecord(db, {
+    postId: post.id,
+    authorId: actor.userId,
+    content: parsed.data.content,
+    isInternalNote: true,
+    isSystemAudit: false,
+  });
+
+  const author: CommentAuthor = {
+    id: actor.userId,
+    name: actor.user?.name ?? null,
+    email: actor.user?.email ?? "",
+    image: actor.user?.image ?? null,
+  };
+
+  const noteItem: CommentItem = {
+    id: created.id,
+    postId: created.postId,
+    authorId: created.authorId,
+    content: created.content,
+    isInternalNote: true,
+    isSystemAudit: false,
+    createdAt: created.createdAt,
+    updatedAt: created.updatedAt,
+    author,
+    isTeamMember: true,
+    authorRole: effectiveRole,
+    canEdit: true,
+    canDelete: true,
+  };
+
+  return { success: true, note: noteItem, comment: noteItem };
+}
+
