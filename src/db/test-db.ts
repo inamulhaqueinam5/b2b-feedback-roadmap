@@ -137,6 +137,21 @@ export async function getTestDb() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_post_subscribers_user_id ON post_subscribers(user_id);
+
+    CREATE TABLE IF NOT EXISTS comments (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+      author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      is_internal_note BOOLEAN NOT NULL DEFAULT FALSE,
+      is_system_audit BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_author_id ON comments(author_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
   `);
 
   testDbInstance = drizzle(client, { schema });

@@ -36,6 +36,19 @@ export async function getWorkspaceRecordBySlug(
   return found ?? null;
 }
 
+export async function getWorkspaceRecordById(
+  db: DbClient,
+  id: string
+): Promise<Workspace | null> {
+  const [found] = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.id, id))
+    .limit(1);
+
+  return found ?? null;
+}
+
 export async function isWorkspaceSlugAvailable(
   db: DbClient,
   slug: string
